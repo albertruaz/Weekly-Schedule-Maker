@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KAIST 스타일 시간표</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="timetable-container">
+      <h2>주간 시간표</h2>
+      <table class="timetable" id="timetable">
+        <thead>
+          <tr>
+            <th class="time-cell"></th>
+            <th class="day-header">월요일</th>
+            <th class="day-header">화요일</th>
+            <th class="day-header">수요일</th>
+            <th class="day-header">목요일</th>
+            <th class="day-header">금요일</th>
+            <th class="day-header">토요일</th>
+            <th class="day-header">일요일</th>
+          </tr>
+        </thead>
+        <tbody id="timetable-body">
+          <!-- 스크립트에서 시간표 내용이 생성됩니다 -->
+        </tbody>
+      </table>
+    </div>
+
+    <div class="color-palette">
+      <div class="palette-label">강의 색상:</div>
+      <div
+        class="color-option"
+        data-color="#EAEAEA"
+        style="background-color: #eaeaea"
+      ></div>
+      <div
+        class="color-option selected"
+        data-color="#E3D2C3"
+        style="background-color: #e3d2c3"
+      ></div>
+      <div
+        class="color-option"
+        data-color="#B3D8A8"
+        style="background-color: #b3d8a8"
+      ></div>
+      <div
+        class="color-option"
+        data-color="#D69ADE"
+        style="background-color: #d69ade"
+      ></div>
+      <div
+        class="color-option"
+        data-color="#A1E3F9"
+        style="background-color: #a1e3f9"
+      ></div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
