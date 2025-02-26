@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       row.appendChild(timeCell);
 
-      // 요일별 시간 슬롯 (7일로 확장)
+      // 요일별 시간 슬롯
       for (let day = 0; day < 7; day++) {
         const cell = document.createElement("td");
         cell.className = "time-slot";
@@ -180,30 +180,54 @@ document.addEventListener("DOMContentLoaded", function () {
     const firstCell = sortedCells[0];
     const lastCell = sortedCells[sortedCells.length - 1];
     const day = parseInt(firstCell.dataset.day);
+    const startHour = parseInt(firstCell.dataset.hour);
+    const startMin = parseInt(firstCell.dataset.min);
+    const endHour = parseInt(lastCell.dataset.hour);
+    const endMin = parseInt(lastCell.dataset.min);
 
     // 코스 박스 생성
     const courseBox = document.createElement("div");
     courseBox.className = "course-box";
     courseBox.style.backgroundColor = selectedColor;
+    courseBox.dataset.day = day;
+    courseBox.dataset.startHour = startHour;
+    courseBox.dataset.startMin = startMin;
+    courseBox.dataset.endHour = endHour;
+    courseBox.dataset.endMin = endMin;
+    courseBox.dataset.color = selectedColor;
 
     // 편집 가능한 제목 생성
     const courseTitle = document.createElement("div");
     courseTitle.className = "course-title";
     courseTitle.contentEditable = true;
     courseTitle.textContent = "강의명";
+    courseTitle.addEventListener("input", saveTimetable);
 
     // 편집 가능한 교수명 생성
     const courseInstructor = document.createElement("div");
     courseInstructor.className = "course-instructor";
     courseInstructor.contentEditable = true;
     courseInstructor.textContent = "담당교수";
+    courseInstructor.addEventListener("input", saveTimetable);
 
     // 편집 가능한 장소 생성
     const courseLocation = document.createElement("div");
     courseLocation.className = "course-location";
     courseLocation.contentEditable = true;
     courseLocation.textContent = "강의실";
+    courseLocation.addEventListener("input", saveTimetable);
 
+    // 삭제 버튼 추가
+    const deleteButton = document.createElement("div");
+    deleteButton.className = "delete-button";
+    deleteButton.innerHTML = "×";
+    deleteButton.addEventListener("click", function (e) {
+      e.stopPropagation();
+      courseBox.remove();
+      saveTimetable();
+    });
+
+    courseBox.appendChild(deleteButton);
     courseBox.appendChild(courseTitle);
     courseBox.appendChild(courseInstructor);
     courseBox.appendChild(courseLocation);
@@ -225,11 +249,14 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // 테두리와 패딩을 고려한 높이 조정
-      courseBox.style.height = `${totalHeight - 1}px`;
+      courseBox.style.height = `${totalHeight - 2}px`;
     }
 
     // 선택 초기화
     clearSelection();
+
+    // 시간표 저장
+    saveTimetable();
   }
 
   // 이벤트 리스너
@@ -263,4 +290,126 @@ document.addEventListener("DOMContentLoaded", function () {
     startCell = null;
     startDay = null; // 드래그 요일 초기화
   });
+
+  // 시간표 저장 함수
+  function saveTimetable() {
+    const courseBoxes = document.querySelectorAll(".course-box");
+    const timetableData = [];
+
+    courseBoxes.forEach((box) => {
+      const courseData = {
+        day: parseInt(box.dataset.day),
+        startHour: parseInt(box.dataset.startHour),
+        startMin: parseInt(box.dataset.startMin),
+        endHour: parseInt(box.dataset.endHour),
+        endMin: parseInt(box.dataset.endMin),
+        color: box.dataset.color,
+        title: box.querySelector(".course-title").textContent,
+        instructor: box.querySelector(".course-instructor").textContent,
+        location: box.querySelector(".course-location").textContent,
+        height: box.style.height,
+      };
+      timetableData.push(courseData);
+    });
+
+    localStorage.setItem("timetableData", JSON.stringify(timetableData));
+  }
+
+  // 시간표 불러오기 함수
+  function loadTimetable() {
+    const savedData = localStorage.getItem("timetableData");
+    if (!savedData) return;
+
+    const timetableData = JSON.parse(savedData);
+
+    timetableData.forEach((courseData) => {
+      // 첫 번째 셀 찾기
+      const firstCell = document.querySelector(
+        `.time-slot[data-day="${courseData.day}"][data-hour="${courseData.startHour}"][data-min="${courseData.startMin}"]`
+      );
+
+      if (firstCell) {
+        // 코스 박스 생성
+        const courseBox = document.createElement("div");
+        courseBox.className = "course-box";
+        courseBox.style.backgroundColor = courseData.color;
+        courseBox.style.height = courseData.height;
+        courseBox.dataset.day = courseData.day;
+        courseBox.dataset.startHour = courseData.startHour;
+        courseBox.dataset.startMin = courseData.startMin;
+        courseBox.dataset.endHour = courseData.endHour;
+        courseBox.dataset.endMin = courseData.endMin;
+        courseBox.dataset.color = courseData.color;
+
+        // 삭제 버튼 추가
+        const deleteButton = document.createElement("div");
+        deleteButton.className = "delete-button";
+        deleteButton.innerHTML = "×";
+        deleteButton.addEventListener("click", function (e) {
+          e.stopPropagation();
+          courseBox.remove();
+          saveTimetable();
+        });
+
+        // 제목 생성
+        const courseTitle = document.createElement("div");
+        courseTitle.className = "course-title";
+        courseTitle.contentEditable = true;
+        courseTitle.textContent = courseData.title;
+        courseTitle.addEventListener("input", saveTimetable);
+
+        // 교수명 생성
+        const courseInstructor = document.createElement("div");
+        courseInstructor.className = "course-instructor";
+        courseInstructor.contentEditable = true;
+        courseInstructor.textContent = courseData.instructor;
+        courseInstructor.addEventListener("input", saveTimetable);
+
+        // 장소 생성
+        const courseLocation = document.createElement("div");
+        courseLocation.className = "course-location";
+        courseLocation.contentEditable = true;
+        courseLocation.textContent = courseData.location;
+        courseLocation.addEventListener("input", saveTimetable);
+
+        courseBox.appendChild(deleteButton);
+        courseBox.appendChild(courseTitle);
+        courseBox.appendChild(courseInstructor);
+        courseBox.appendChild(courseLocation);
+
+        // 셀에 박스 추가
+        firstCell.appendChild(courseBox);
+
+        // 마지막 셀까지의 셀들 스타일링
+        const lastCell = document.querySelector(
+          `.time-slot[data-day="${courseData.day}"][data-hour="${courseData.endHour}"][data-min="${courseData.endMin}"]`
+        );
+
+        if (lastCell && firstCell !== lastCell) {
+          // 시작 시간과 종료 시간 사이의 모든 셀 가져오기
+          const startTime = courseData.startHour * 60 + courseData.startMin;
+          const endTime = courseData.endHour * 60 + courseData.endMin;
+
+          const allCells = Array.from(
+            document.querySelectorAll(
+              `.time-slot[data-day="${courseData.day}"]`
+            )
+          ).filter((cell) => {
+            const cellTime =
+              parseInt(cell.dataset.hour) * 60 + parseInt(cell.dataset.min);
+            return cellTime > startTime && cellTime <= endTime;
+          });
+
+          // 중간에 있는 셀들 스타일링
+          allCells.forEach((cell) => {
+            cell.style.position = "relative";
+            cell.style.zIndex = "-1";
+          });
+        }
+      }
+    });
+  }
+
+  // 페이지 로드 시 시간표 불러오기
+  loadTimetable();
 });
