@@ -412,4 +412,52 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // 페이지 로드 시 시간표 불러오기
   loadTimetable();
+
+  // 다운로드 버튼 기능
+  document
+    .getElementById("download-btn")
+    .addEventListener("click", function () {
+      const dataStr = JSON.stringify(
+        JSON.parse(localStorage.getItem("timetableData")),
+        null,
+        2
+      );
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "timetable.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+  // 로드 버튼 기능
+  document.getElementById("load-btn").addEventListener("click", function () {
+    document.getElementById("load-input").click();
+  });
+
+  document
+    .getElementById("load-input")
+    .addEventListener("change", function (event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const content = e.target.result;
+        try {
+          const data = JSON.parse(content);
+          localStorage.setItem("timetableData", JSON.stringify(data));
+          // 기존 시간표 초기화
+          document
+            .querySelectorAll(".course-box")
+            .forEach((box) => box.remove());
+          // 새 데이터 로드
+          loadTimetable();
+        } catch (error) {
+          alert("Invalid JSON file");
+        }
+      };
+      reader.readAsText(file);
+    });
 });
