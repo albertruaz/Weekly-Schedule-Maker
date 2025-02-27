@@ -16,11 +16,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (min === 0) {
         const timeLabel = document.createElement("span");
         timeLabel.className = "time-label";
-        if (hour < 24) {
-          timeLabel.textContent = `${hour}`;
-        } else {
-          timeLabel.textContent = `${hour - 24}`;
-        }
+        timeLabel.textContent = `${hour}`;
         timeCell.appendChild(timeLabel);
       }
       row.appendChild(timeCell);
