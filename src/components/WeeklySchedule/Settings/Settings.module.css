@@ -19,6 +19,45 @@
   color: #333;
 }
 
+.timeRangeControl {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.timeRangeSelect {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeRangeSelect select {
+  flex: 1;
+  padding: 6px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  appearance: none;
+  text-align: center;
+}
+
+.timeRangeSelect select:hover {
+  border-color: #ccc;
+}
+
+.timeRangeSelect select:focus {
+  outline: none;
+  border-color: #aaa;
+}
+
+.timeRangeSeparator {
+  font-size: 14px;
+  color: #666;
+  padding: 0 4px;
+}
+
 .alignmentControl {
   display: flex;
   flex-direction: column;
@@ -82,4 +121,66 @@
 .jsonControls button:hover {
   background-color: #f5f5f5;
   border-color: #ccc;
+}
+
+.dayControl {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.dayButton {
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 24px;
+  text-align: center;
+}
+
+.dayButton:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+.dayActive {
+  background-color: #e8e8e8;
+  border-color: #ccc;
+}
+
+.dayRed {
+  color: #e74c3c;
+}
+
+.dayRed.dayActive {
+  background-color: #fde8e7;
+}
+
+.timeFormatControl {
+  margin-top: 10px;
+}
+
+.timeFormatControl select {
+  width: 100%;
+  padding: 6px;
+  font-size: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  appearance: none;
+}
+
+.timeFormatControl select:hover {
+  border-color: #ccc;
+}
+
+.timeFormatControl select:focus {
+  outline: none;
+  border-color: #aaa;
 }

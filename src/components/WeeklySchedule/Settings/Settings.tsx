@@ -1,6 +1,9 @@
 import { Component } from "solid-js";
 import { AlignmentControl } from "./AlignmentControl";
 import { ColorPalette } from "./ColorPalette";
+import { TimeRangeControl } from "./TimeRangeControl";
+import { DayControl } from "./DayControl";
+import { TimeFormatControl, type TimeFormat } from "./TimeFormatControl";
 import styles from "./Settings.module.css";
 
 type TextAlign = "left" | "center" | "right";
@@ -15,6 +18,14 @@ interface SettingsProps {
   selectedColor: () => string;
   setSelectedColor: (color: string) => void;
   colors: string[];
+  startHour: () => number;
+  endHour: () => number;
+  setStartHour: (hour: number) => void;
+  setEndHour: (hour: number) => void;
+  activeDays: () => number[];
+  setActiveDays: (days: number[]) => void;
+  timeFormat: () => TimeFormat;
+  setTimeFormat: (format: TimeFormat) => void;
   onSave: () => void;
   onLoad: (event: Event) => void;
 }
@@ -23,7 +34,21 @@ export const Settings: Component<SettingsProps> = (props) => {
   return (
     <div class={styles.settingsContainer}>
       <div class={styles.settingsSection}>
-        <h3>텍스트 정렬</h3>
+        <h3>시간표 설정</h3>
+        <TimeRangeControl
+          startHour={props.startHour}
+          endHour={props.endHour}
+          setStartHour={props.setStartHour}
+          setEndHour={props.setEndHour}
+        />
+        <DayControl
+          activeDays={props.activeDays}
+          setActiveDays={props.setActiveDays}
+        />
+      </div>
+
+      <div class={styles.settingsSection}>
+        <h3>일정 설정</h3>
         <AlignmentControl
           titleAlign={props.titleAlign}
           timeAlign={props.timeAlign}
@@ -31,6 +56,10 @@ export const Settings: Component<SettingsProps> = (props) => {
           setTitleAlign={props.setTitleAlign}
           setTimeAlign={props.setTimeAlign}
           setTextAlign={props.setTextAlign}
+        />
+        <TimeFormatControl
+          format={props.timeFormat}
+          setFormat={props.setTimeFormat}
         />
       </div>
 
