@@ -1,6 +1,14 @@
-import { createSignal, createEffect, onMount, For, Show } from "solid-js";
+import {
+  createSignal,
+  createEffect,
+  onMount,
+  For,
+  Show,
+  onCleanup,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import styles from "./WeeklySchedule.module.css";
+import { Settings } from "./Settings/Settings";
 
 // 타입 정의
 type Day = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0: 월요일, 6: 일요일
@@ -10,11 +18,13 @@ type TimeSlot = {
   minute: number;
 };
 
+type TextAlign = "left" | "center" | "right";
+
 type Course = {
   id: string;
   title: string;
-  instructor: string;
-  location: string;
+  time: string; // 자동 생성되는 시간 텍스트
+  text: string; // 기타 텍스트
   color: string;
   day: Day;
   startHour: number;
@@ -43,6 +53,9 @@ export default function WeeklySchedule() {
     width: 0,
     height: 0,
   });
+  const [titleAlign, setTitleAlign] = createSignal<TextAlign>("center");
+  const [timeAlign, setTimeAlign] = createSignal<TextAlign>("center");
+  const [textAlign, setTextAlign] = createSignal<TextAlign>("center");
 
   // 시간 범위 (09:00 ~ 22:00)
   const hours = Array.from({ length: 14 }, (_, i) => i + 9);
@@ -76,6 +89,61 @@ export default function WeeklySchedule() {
   onMount(() => {
     // 기본 색상 설정
     setSelectedColor(colors[1]); // 기본값으로 두 번째 색상 선택
+
+    // ResizeObserver 설정
+    const timetable = document.getElementById("timetable");
+    if (timetable) {
+      const resizeObserver = new ResizeObserver(() => {
+        // 모든 강의 박스의 위치와 크기 재계산
+        const updatedCourses = courses.map((course) => {
+          const firstCellElement = document.querySelector(
+            `td[data-day="${course.day}"][data-hour="${course.startHour}"][data-minute="${course.startMinute}"]`
+          );
+
+          const lastCellElement = document.querySelector(
+            `td[data-day="${course.day}"][data-hour="${
+              course.endHour
+            }"][data-minute="${course.endMinute === 0 ? 30 : 0}"]`
+          );
+
+          if (firstCellElement) {
+            const timetableRect = timetable.getBoundingClientRect();
+            const firstCellRect = firstCellElement.getBoundingClientRect();
+
+            let height;
+            if (lastCellElement) {
+              const lastCellRect = lastCellElement.getBoundingClientRect();
+              height = lastCellRect.bottom - firstCellRect.top;
+            } else {
+              const duration =
+                (course.endHour - course.startHour) * 60 +
+                (course.endMinute - course.startMinute);
+              height = (duration / 30) * 14;
+            }
+
+            return {
+              ...course,
+              position: {
+                top: firstCellRect.top - timetableRect.top,
+                left: firstCellRect.left - timetableRect.left,
+                width: firstCellRect.width,
+                height: height,
+              },
+            };
+          }
+          return course;
+        });
+
+        setCourses(updatedCourses);
+      });
+
+      resizeObserver.observe(timetable);
+
+      // cleanup
+      onCleanup(() => {
+        resizeObserver.disconnect();
+      });
+    }
   });
 
   // 셀 클릭 핸들러
@@ -95,23 +163,49 @@ export default function WeeklySchedule() {
     if (isDragging() && dragStart()) {
       const start = dragStart()!;
 
-      // 중요: 마우스가 어느 요일 열에 있든, start.day(원래 요일)를 유지하면서 현재 마우스 위치의 시간만 사용
-      // 이렇게 하면 다른 요일로 마우스를 이동해도 시작한 요일 열에서만 높이가 조정됨
-      setCurrentEnd({ day: start.day, hour, minute });
+      // 현재 시간이 기존 강의와 겹치는지 확인
+      const currentTime = hour * 60 + minute;
+      const startTime = start.hour * 60 + start.minute;
 
-      // 같은 요일 내에서만 셀 선택 (현재 마우스 위치의 day가 아닌 시작 day 사용)
-      selectCellsBetween(start, { day: start.day, hour, minute });
+      // 드래그 방향 확인
+      const isUpward = currentTime < startTime;
 
-      // 오버레이 위치 업데이트 (day는 시작 day로 고정, 시간만 현재 마우스 위치의 것을 사용)
-      // 이렇게 하면 다른 요일로 마우스를 움직여도 원래 요일 열에 오버레이가 표시됨
-      updateOverlayPosition(
-        start.day,
-        start.hour,
-        start.minute,
-        start.day, // 원래 day로 유지 (마우스가 다른 요일에 있어도)
-        hour, // 현재 마우스의 시간 정보 사용
-        minute // 현재 마우스의 분 정보 사용
-      );
+      // 기존 강의와의 충돌 확인
+      let hasConflict = false;
+      for (const course of courses) {
+        if (course.day !== start.day) continue;
+
+        const courseStartTime = course.startHour * 60 + course.startMinute;
+        const courseEndTime = course.endHour * 60 + course.endMinute;
+
+        if (isUpward) {
+          // 위로 드래그할 때는 현재 시간이 기존 강의의 끝 시간보다 작거나 같으면 충돌
+          if (currentTime <= courseEndTime && startTime > courseStartTime) {
+            hasConflict = true;
+            break;
+          }
+        } else {
+          // 아래로 드래그할 때는 현재 시간이 기존 강의의 시작 시간보다 크거나 같으면 충돌
+          if (currentTime >= courseStartTime && startTime < courseEndTime) {
+            hasConflict = true;
+            break;
+          }
+        }
+      }
+
+      // 충돌이 있으면 드래그 위치를 조정
+      if (!hasConflict) {
+        setCurrentEnd({ day: start.day, hour, minute });
+        selectCellsBetween(start, { day: start.day, hour, minute });
+        updateOverlayPosition(
+          start.day,
+          start.hour,
+          start.minute,
+          start.day,
+          hour,
+          minute
+        );
+      }
     }
   };
 
@@ -216,6 +310,14 @@ export default function WeeklySchedule() {
     // 더 효율적인 선택 방식: 배열 미리 할당
     const newSelectedCells: TimeSlot[] = [];
 
+    // 기존 강의들의 시간 범위를 미리 계산
+    const existingTimeRanges = courses
+      .filter((course) => course.day === day)
+      .map((course) => ({
+        start: course.startHour * 60 + course.startMinute,
+        end: course.endHour * 60 + course.endMinute,
+      }));
+
     // 시간 순서대로 선택 (30분 단위)
     for (let time = minTime; time <= maxTime; time += 30) {
       const hour = Math.floor(time / 60);
@@ -226,14 +328,9 @@ export default function WeeklySchedule() {
 
       // 강의 중복 체크
       let hasConflict = false;
-      for (let i = 0; i < courses.length; i++) {
-        const course = courses[i];
-        if (course.day !== day) continue;
-
-        const courseStartTime = course.startHour * 60 + course.startMinute;
-        const courseEndTime = course.endHour * 60 + course.endMinute;
-
-        if (time >= courseStartTime && time < courseEndTime) {
+      for (const range of existingTimeRanges) {
+        // 시작 시간이나 끝 시간이 기존 강의와 겹치면 충돌로 처리
+        if (time >= range.start && time <= range.end) {
           hasConflict = true;
           break;
         }
@@ -245,6 +342,14 @@ export default function WeeklySchedule() {
     }
 
     setSelectedCells(newSelectedCells);
+  };
+
+  // 시간을 "오전/오후 HH:MM" 형식으로 변환하는 함수
+  const formatTime = (hour: number, minute: number) => {
+    const period = hour < 12 ? "오전" : "오후";
+    const displayHour = hour <= 12 ? hour : hour - 12;
+    const displayMinute = minute.toString().padStart(2, "0");
+    return `${period} ${displayHour}:${displayMinute}`;
   };
 
   // 강의 박스 생성
@@ -321,12 +426,18 @@ export default function WeeklySchedule() {
       height = (duration / 30) * 14; // 30분당 14px
     }
 
+    // 시간 텍스트 생성
+    const timeText = `${formatTime(startHour, startMinute)} ~ ${formatTime(
+      endHour,
+      endMinute
+    )}`;
+
     // 새 강의 추가
     const newCourse: Course = {
       id: generateId(),
       title: "새 강의",
-      instructor: "담당교수",
-      location: "강의실",
+      time: timeText,
+      text: "설명을 입력하세요",
       color: selectedColor(),
       day: start.day,
       startHour,
@@ -353,7 +464,7 @@ export default function WeeklySchedule() {
   // 강의 내용 업데이트
   const updateCourseContent = (
     id: string,
-    field: keyof Course,
+    field: "title" | "text",
     value: string
   ) => {
     setCourses((course) => course.id === id, field as any, value);
@@ -441,14 +552,19 @@ export default function WeeklySchedule() {
     reader.readAsText(file);
   };
 
-  // 강의 박스 위치 및 크기 계산
+  // 정렬 순환 함수
+  const cycleAlignment = (current: TextAlign): TextAlign => {
+    if (current === "left") return "center";
+    if (current === "center") return "right";
+    return "left";
+  };
+
+  // 강의 박스 스타일 계산
   const getCourseStyle = (course: Course) => {
-    // position이 없다면 에러 로깅 추가
     if (!course.position) {
       console.warn(`Course ${course.id} has no position information`);
     }
 
-    // position 정보만 사용하도록 단순화
     return {
       position: "absolute",
       top: `${(course.position?.top || 0) + 2}px`,
@@ -459,6 +575,11 @@ export default function WeeklySchedule() {
       opacity: "1",
       zIndex: 10,
       borderRadius: "0px",
+      transition: "transform 0.2s, box-shadow 0.2s",
+      "transform-origin": "center",
+      "will-change": "transform, width, height",
+      "backface-visibility": "hidden",
+      "pointer-events": "auto",
     } as any;
   };
 
@@ -466,132 +587,154 @@ export default function WeeklySchedule() {
     <div class={styles.timetableContainer}>
       <h2>주간 시간표</h2>
 
-      <div class={styles.timetableWrapper} style={{ position: "relative" }}>
-        <table class={styles.timetable} id="timetable">
-          <thead>
-            <tr>
-              <th class={styles.timeCell}></th>
-              <For each={days}>
-                {(day, index) => <th class={styles.dayHeader}>{day}</th>}
+      <div class={styles.contentWrapper}>
+        <div class={styles.timetableWrapper}>
+          <table class={styles.timetable} id="timetable">
+            <thead>
+              <tr>
+                <th class={styles.timeCell}></th>
+                <For each={days}>
+                  {(day, index) => <th class={styles.dayHeader}>{day}</th>}
+                </For>
+              </tr>
+            </thead>
+            <tbody>
+              <For each={hours}>
+                {(hour) => (
+                  <>
+                    {/* 정시 (hour:00) */}
+                    <tr>
+                      <td class={styles.timeCell}>
+                        <div class={styles.timeLabel}>{hour}:00</div>
+                      </td>
+                      <For each={Array(7).fill(0)}>
+                        {(_, dayIndex) => (
+                          <td
+                            class={`${styles.timeSlot} ${styles.hourLine}`}
+                            onMouseDown={() =>
+                              handleCellMouseDown(dayIndex() as Day, hour, 0)
+                            }
+                            onMouseOver={() =>
+                              handleCellMouseOver(dayIndex() as Day, hour, 0)
+                            }
+                            data-day={dayIndex()}
+                            data-hour={hour}
+                            data-minute={0}
+                          ></td>
+                        )}
+                      </For>
+                    </tr>
+                    {/* 30분 (hour:30) */}
+                    <tr>
+                      <td class={styles.timeCell}></td>
+                      <For each={Array(7).fill(0)}>
+                        {(_, dayIndex) => (
+                          <td
+                            class={`${styles.timeSlot} ${styles.halfHourLine}`}
+                            onMouseDown={() =>
+                              handleCellMouseDown(dayIndex() as Day, hour, 30)
+                            }
+                            onMouseOver={() =>
+                              handleCellMouseOver(dayIndex() as Day, hour, 30)
+                            }
+                            data-day={dayIndex()}
+                            data-hour={hour}
+                            data-minute={30}
+                          ></td>
+                        )}
+                      </For>
+                    </tr>
+                  </>
+                )}
               </For>
-            </tr>
-          </thead>
-          <tbody>
-            <For each={hours}>
-              {(hour) => (
-                <>
-                  {/* 정시 (hour:00) */}
-                  <tr>
-                    <td class={styles.timeCell}>
-                      <div class={styles.timeLabel}>{hour}:00</div>
-                    </td>
-                    <For each={Array(7).fill(0)}>
-                      {(_, dayIndex) => (
-                        <td
-                          class={`${styles.timeSlot} ${styles.hourLine}`}
-                          onMouseDown={() =>
-                            handleCellMouseDown(dayIndex() as Day, hour, 0)
-                          }
-                          onMouseOver={() =>
-                            handleCellMouseOver(dayIndex() as Day, hour, 0)
-                          }
-                          data-day={dayIndex()}
-                          data-hour={hour}
-                          data-minute={0}
-                        ></td>
-                      )}
-                    </For>
-                  </tr>
-                  {/* 30분 (hour:30) */}
-                  <tr>
-                    <td class={styles.timeCell}></td>
-                    <For each={Array(7).fill(0)}>
-                      {(_, dayIndex) => (
-                        <td
-                          class={`${styles.timeSlot} ${styles.halfHourLine}`}
-                          onMouseDown={() =>
-                            handleCellMouseDown(dayIndex() as Day, hour, 30)
-                          }
-                          onMouseOver={() =>
-                            handleCellMouseOver(dayIndex() as Day, hour, 30)
-                          }
-                          data-day={dayIndex()}
-                          data-hour={hour}
-                          data-minute={30}
-                        ></td>
-                      )}
-                    </For>
-                  </tr>
-                </>
+            </tbody>
+          </table>
+
+          {/* 강의 박스 */}
+          <div class={styles.courseBoxGrid}>
+            <For each={courses}>
+              {(course) => (
+                <div
+                  class={styles.courseBox}
+                  style={getCourseStyle(course)}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div
+                    class={styles.deleteButton}
+                    onClick={() => deleteCourse(course.id)}
+                  >
+                    ×
+                  </div>
+                  <div
+                    class={styles.courseTitle}
+                    style={{ "text-align": titleAlign() }}
+                    contentEditable={true}
+                    onBlur={(e) =>
+                      updateCourseContent(
+                        course.id,
+                        "title",
+                        e.currentTarget.textContent || ""
+                      )
+                    }
+                  >
+                    {course.title}
+                  </div>
+                  <div
+                    style={{
+                      "font-weight": "normal",
+                      "margin-bottom": "1px",
+                      "font-size": "5.5px",
+                      width: "100%",
+                      color: "#444",
+                      "user-select": "none",
+                      "text-align": timeAlign(),
+                    }}
+                  >
+                    {course.time}
+                  </div>
+                  <div
+                    style={{
+                      "font-weight": "normal",
+                      "font-size": "5.5px",
+                      color:
+                        course.text === "설명을 입력하세요" ? "#888" : "#555",
+                      width: "100%",
+                      "text-align": textAlign(),
+                    }}
+                    contentEditable={true}
+                    onFocus={(e) => {
+                      if (e.currentTarget.textContent === "설명을 입력하세요") {
+                        e.currentTarget.textContent = "";
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (!e.currentTarget.textContent?.trim()) {
+                        e.currentTarget.textContent = "설명을 입력하세요";
+                        updateCourseContent(
+                          course.id,
+                          "text",
+                          "설명을 입력하세요"
+                        );
+                      } else {
+                        updateCourseContent(
+                          course.id,
+                          "text",
+                          e.currentTarget.textContent
+                        );
+                      }
+                    }}
+                  >
+                    {course.text}
+                  </div>
+                </div>
               )}
             </For>
-          </tbody>
-        </table>
+          </div>
 
-        {/* 강의 박스 */}
-        <div class={styles.courseBoxGrid}>
-          <For each={courses}>
-            {(course) => (
-              <div
-                class={styles.courseBox}
-                style={getCourseStyle(course)}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div
-                  class={styles.deleteButton}
-                  onClick={() => deleteCourse(course.id)}
-                >
-                  ×
-                </div>
-                <div
-                  class={styles.courseTitle}
-                  contentEditable={true}
-                  onBlur={(e) =>
-                    updateCourseContent(
-                      course.id,
-                      "title",
-                      e.currentTarget.textContent || ""
-                    )
-                  }
-                >
-                  {course.title}
-                </div>
-                <div
-                  class={styles.courseInstructor}
-                  contentEditable={true}
-                  onBlur={(e) =>
-                    updateCourseContent(
-                      course.id,
-                      "instructor",
-                      e.currentTarget.textContent || ""
-                    )
-                  }
-                >
-                  {course.instructor}
-                </div>
-                <div
-                  class={styles.courseLocation}
-                  contentEditable={true}
-                  onBlur={(e) =>
-                    updateCourseContent(
-                      course.id,
-                      "location",
-                      e.currentTarget.textContent || ""
-                    )
-                  }
-                >
-                  {course.location}
-                </div>
-              </div>
-            )}
-          </For>
-        </div>
-
-        {/* 드래그 오버레이 - 위치 수정 */}
-        {isDragging() && (
-          <div
-            style={
-              {
+          {/* 드래그 오버레이 */}
+          {isDragging() && (
+            <div
+              style={{
                 position: "absolute",
                 top: 0,
                 left: 0,
@@ -599,12 +742,10 @@ export default function WeeklySchedule() {
                 bottom: 0,
                 "pointer-events": "none",
                 zIndex: 100,
-              } as any
-            }
-          >
-            <div
-              style={
-                {
+              }}
+            >
+              <div
+                style={{
                   position: "absolute",
                   top: `${overlayPosition().top}px`,
                   left: `${overlayPosition().left}px`,
@@ -614,71 +755,25 @@ export default function WeeklySchedule() {
                   opacity: "1",
                   "pointer-events": "none",
                   borderRadius: "4px",
-                } as any
-              }
-            />
-          </div>
-        )}
-      </div>
-
-      {/* 컨트롤 영역 */}
-      <div class={styles.controls}>
-        <button id="save-btn" onClick={saveTimetable}>
-          Download JSON
-        </button>
-        <input
-          type="file"
-          id="load-input"
-          accept=".json"
-          style={{ display: "none" }}
-          onChange={loadTimetable}
-        />
-        <button
-          id="load-btn"
-          onClick={() => document.getElementById("load-input")?.click()}
-        >
-          Load JSON
-        </button>
-      </div>
-
-      {/* 색상 팔레트 */}
-      <div class={styles.colorPalette}>
-        <div class={styles.paletteLabel}>강의 색상:</div>
-        <For each={colors}>
-          {(color) => (
-            <div
-              class={styles.colorOption}
-              classList={{ [styles.selected]: selectedColor() === color }}
-              style={
-                {
-                  "background-color": color,
-                  opacity: "1",
-                } as any
-              }
-              data-color={color}
-              onClick={() => setSelectedColor(color)}
-            ></div>
+                }}
+              />
+            </div>
           )}
-        </For>
-        <div
-          style={
-            { "margin-left": "10px", "font-size": "12px", color: "#666" } as any
-          }
-        >
-          현재 선택:{" "}
-          <span
-            style={
-              {
-                display: "inline-block",
-                width: "14px",
-                height: "14px",
-                backgroundColor: selectedColor(),
-                borderRadius: "4px",
-                verticalAlign: "middle",
-              } as any
-            }
-          ></span>
         </div>
+
+        <Settings
+          titleAlign={titleAlign}
+          timeAlign={timeAlign}
+          textAlign={textAlign}
+          setTitleAlign={setTitleAlign}
+          setTimeAlign={setTimeAlign}
+          setTextAlign={setTextAlign}
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
+          colors={colors}
+          onSave={saveTimetable}
+          onLoad={loadTimetable}
+        />
       </div>
     </div>
   );

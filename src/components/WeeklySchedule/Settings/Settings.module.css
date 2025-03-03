@@ -1,0 +1,85 @@
+.settingsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 15px;
+  border-radius: 8px;
+  width: 200px;
+}
+
+.settingsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settingsSection h3 {
+  margin: 0;
+  font-size: 14px;
+  color: #333;
+}
+
+.alignmentControl {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.alignmentButton {
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.alignmentButton:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
+
+.colorPalette {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+}
+
+.colorOption {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  border: 1px solid #ddd;
+}
+
+.colorOption:hover {
+  transform: scale(1.1);
+}
+
+.colorOption.selected {
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #000;
+}
+
+.jsonControls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.jsonControls button {
+  padding: 8px;
+  font-size: 12px;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.jsonControls button:hover {
+  background-color: #f5f5f5;
+  border-color: #ccc;
+}
