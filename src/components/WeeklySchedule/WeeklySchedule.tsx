@@ -657,7 +657,7 @@ export default function WeeklySchedule() {
 
   return (
     <div class={styles.timetableContainer}>
-      <h2>주간 시간표</h2>
+      <h2>Weekly Schedule</h2>
 
       <div class={styles.contentWrapper}>
         <div class={styles.timetableWrapper}>

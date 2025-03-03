@@ -10,7 +10,7 @@ function App() {
     <div class="app-container">
       {!showWeeklySchedule() ? (
         <div class="home-container">
-          <h1>KAIST 스타일 시간표</h1>
+          <h1>Home Page</h1>
           <p>버튼을 클릭하여 주간 시간표를 확인하세요.</p>
           <button
             class="schedule-btn"
