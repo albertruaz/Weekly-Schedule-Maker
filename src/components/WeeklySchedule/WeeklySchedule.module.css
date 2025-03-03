@@ -1,0 +1,233 @@
+/* WeeklySchedule.module.css */
+.timetableContainer {
+  max-width: 560px;
+  margin: 0 auto;
+  overflow-x: auto;
+  position: relative;
+}
+
+.timetableWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.timetable {
+  border-collapse: collapse;
+  width: 100%;
+  user-select: none;
+  background-color: white;
+  table-layout: fixed;
+}
+
+.timetable th,
+.timetable td {
+  text-align: center;
+  position: relative;
+  height: 14px;
+}
+
+/* 테이블 헤더 스타일 */
+.timetable th {
+  font-weight: normal;
+  padding: 3px 0;
+  border-bottom: 1px solid #e0e0e0;
+  color: #666;
+  font-size: 8px;
+}
+
+/* 토요일, 일요일 헤더 빨간색으로 설정 */
+.timetable th:nth-child(7),
+.timetable th:nth-child(8) {
+  color: #e74c3c;
+}
+
+/* 시간 셀에는 테두리 없음 */
+.timeCell {
+  width: 14px;
+  font-size: 7px;
+  color: #666;
+  text-align: right;
+  padding-right: 3px;
+  font-weight: normal;
+  vertical-align: top;
+  padding-top: 0;
+  height: 14px;
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 시간 라벨 스타일링 */
+.timeLabel {
+  position: absolute;
+  right: 4px;
+  top: -3.5px;
+  line-height: 1;
+  z-index: 5;
+  background-color: white;
+  padding: 0 2px;
+}
+
+/* 요일 셀의 테두리 스타일 (시간 열과 분리) */
+.timeSlot {
+  border-left: none;
+  cursor: pointer;
+}
+
+.timeSlot:last-child {
+  border-right: none;
+}
+
+/* 실선과 점선 테두리 스타일 */
+.hourLine {
+  border-top: 1px solid #e0e0e0;
+}
+
+.halfHourLine {
+  border-top: 1px dotted #e9e9e9;
+}
+
+.timeSlot:hover {
+  background-color: rgba(173, 216, 230, 0.1);
+}
+
+/* 드래그 선택 색상을 회색으로 변경 */
+.selected {
+  /* background-color: rgba(220, 220, 220, 0.5) !important; */
+  border: 1px dashed rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 강의 박스 컨테이너 */
+.courseBoxGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* 강의 박스 스타일 */
+.courseBox {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  padding: 3px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  font-size: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+  /* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); */
+  /* opacity: 0.95; */
+}
+
+.courseBox:hover {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  z-index: 20 !important;
+}
+
+/* 삭제 버튼 추가 */
+.deleteButton {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 10px;
+  font-size: 7px;
+  line-height: 10px;
+  text-align: center;
+  cursor: pointer;
+  color: rgba(0, 0, 0, 0.5);
+  font-weight: bold;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.courseBox:hover .deleteButton {
+  opacity: 1;
+}
+
+.courseTitle {
+  font-weight: bold;
+  margin-bottom: 1px;
+  font-size: 6px;
+  width: 100%;
+}
+
+.courseInstructor {
+  font-weight: normal;
+  margin-bottom: 1px;
+  font-size: 5.5px;
+  width: 100%;
+}
+
+.courseLocation {
+  font-weight: normal;
+  font-size: 5.5px;
+  color: #555;
+  width: 100%;
+}
+
+.courseTitle[contentEditable="true"]:focus,
+.courseInstructor[contentEditable="true"]:focus,
+.courseLocation[contentEditable="true"]:focus {
+  outline: none;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.dayHeader {
+  width: 13%;
+}
+
+/* 색상 팔레트 스타일 */
+.colorPalette {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 10px;
+  gap: 8px;
+  padding: 10px;
+}
+
+.paletteLabel {
+  font-size: 12px;
+  color: #333;
+  margin-right: 5px;
+  font-weight: 500;
+}
+
+/* 색상 옵션 업데이트 */
+.colorOption {
+  width: 21px;
+  height: 21px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.2s;
+}
+
+.colorOption:hover {
+  transform: scale(1.1);
+}
+
+.colorOption.selected {
+  transform: scale(1.1);
+}
+
+/* 컨트롤 버튼 스타일 */
+.controls {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.controls button {
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
