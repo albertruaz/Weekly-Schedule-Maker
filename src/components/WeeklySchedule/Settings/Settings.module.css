@@ -125,21 +125,21 @@
 
 .dayControl {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   justify-content: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-bottom: 16px;
 }
 
 .dayButton {
-  padding: 6px 8px;
-  font-size: 12px;
+  padding: 4px;
+  font-size: 11px;
   border: 1px solid #ddd;
   border-radius: 4px;
   background-color: white;
   cursor: pointer;
   transition: all 0.2s;
-  min-width: 24px;
+  min-width: 20px;
   text-align: center;
 }
 

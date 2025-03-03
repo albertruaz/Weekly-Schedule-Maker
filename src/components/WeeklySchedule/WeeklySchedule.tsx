@@ -96,6 +96,62 @@ export default function WeeklySchedule() {
   const generateId = () =>
     `course-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+  // 강의 박스 위치 재계산 함수
+  const recalculateAllCoursePositions = () => {
+    const timetable = document.getElementById("timetable");
+    if (!timetable) return;
+
+    const timetableRect = timetable.getBoundingClientRect();
+
+    const updatedCourses = courses.map((course) => {
+      const firstCellElement = document.querySelector(
+        `td[data-day="${course.day}"][data-hour="${course.startHour}"][data-minute="${course.startMinute}"]`
+      );
+
+      const lastCellElement = document.querySelector(
+        `td[data-day="${course.day}"][data-hour="${
+          course.endHour
+        }"][data-minute="${course.endMinute === 0 ? 30 : 0}"]`
+      );
+
+      if (firstCellElement) {
+        const firstCellRect = firstCellElement.getBoundingClientRect();
+
+        let height;
+        if (lastCellElement) {
+          const lastCellRect = lastCellElement.getBoundingClientRect();
+          height = lastCellRect.bottom - firstCellRect.top;
+        } else {
+          const duration =
+            (course.endHour - course.startHour) * 60 +
+            (course.endMinute - course.startMinute);
+          height = (duration / 30) * 14;
+        }
+
+        return {
+          ...course,
+          position: {
+            top: firstCellRect.top - timetableRect.top,
+            left: firstCellRect.left - timetableRect.left,
+            width: firstCellRect.width,
+            height: height,
+          },
+        };
+      }
+      return course;
+    });
+
+    setCourses(updatedCourses);
+  };
+
+  // activeDays가 변경될 때마다 위치 재계산을 위한 effect
+  createEffect(() => {
+    // activeDays의 변경을 감지
+    activeDays();
+    // DOM이 업데이트된 후 위치 재계산
+    setTimeout(recalculateAllCoursePositions, 0);
+  });
+
   // 컴포넌트 마운트 시 초기화
   onMount(() => {
     // 기본 색상 설정
@@ -105,47 +161,7 @@ export default function WeeklySchedule() {
     const timetable = document.getElementById("timetable");
     if (timetable) {
       const resizeObserver = new ResizeObserver(() => {
-        // 모든 강의 박스의 위치와 크기 재계산
-        const updatedCourses = courses.map((course) => {
-          const firstCellElement = document.querySelector(
-            `td[data-day="${course.day}"][data-hour="${course.startHour}"][data-minute="${course.startMinute}"]`
-          );
-
-          const lastCellElement = document.querySelector(
-            `td[data-day="${course.day}"][data-hour="${
-              course.endHour
-            }"][data-minute="${course.endMinute === 0 ? 30 : 0}"]`
-          );
-
-          if (firstCellElement) {
-            const timetableRect = timetable.getBoundingClientRect();
-            const firstCellRect = firstCellElement.getBoundingClientRect();
-
-            let height;
-            if (lastCellElement) {
-              const lastCellRect = lastCellElement.getBoundingClientRect();
-              height = lastCellRect.bottom - firstCellRect.top;
-            } else {
-              const duration =
-                (course.endHour - course.startHour) * 60 +
-                (course.endMinute - course.startMinute);
-              height = (duration / 30) * 14;
-            }
-
-            return {
-              ...course,
-              position: {
-                top: firstCellRect.top - timetableRect.top,
-                left: firstCellRect.left - timetableRect.left,
-                width: firstCellRect.width,
-                height: height,
-              },
-            };
-          }
-          return course;
-        });
-
-        setCourses(updatedCourses);
+        recalculateAllCoursePositions();
       });
 
       resizeObserver.observe(timetable);
@@ -359,21 +375,43 @@ export default function WeeklySchedule() {
   const formatTime = (hour: number, minute: number) => {
     const format = timeFormat();
     const minuteStr = minute.toString().padStart(2, "0");
+    const adjustedHour = hour >= 24 ? hour - 24 : hour;
 
     switch (format) {
       case "24h":
-        return `${hour.toString().padStart(2, "0")}:${minuteStr}`;
-      case "12h":
-        const h12 = hour > 12 ? hour - 12 : hour;
-        return `${h12}:${minuteStr}`;
-      case "korean":
-        const period = hour < 12 ? "오전" : "오후";
-        const h = hour <= 12 ? hour : hour - 12;
+        return `${adjustedHour.toString().padStart(2, "0")}:${minuteStr}`;
+      case "12h": {
+        const h12 =
+          adjustedHour > 12
+            ? adjustedHour - 12
+            : adjustedHour === 0
+            ? 12
+            : adjustedHour;
+        const period = adjustedHour >= 12 && adjustedHour < 24 ? "PM" : "AM";
+        return `${h12}:${minuteStr} ${period}`;
+      }
+      case "korean": {
+        let period;
+        let h;
+        if (adjustedHour === 0) {
+          period = "자정";
+          h = 12;
+        } else if (adjustedHour === 12) {
+          period = "정오";
+          h = 12;
+        } else if (adjustedHour > 12) {
+          period = "오후";
+          h = adjustedHour - 12;
+        } else {
+          period = "오전";
+          h = adjustedHour;
+        }
         return `${period} ${h}시${minute > 0 ? ` ${minute}분` : ""}`;
+      }
       case "simple":
-        return `${hour}시 ${minuteStr}분`;
+        return `${adjustedHour}시 ${minuteStr}분`;
       default:
-        return `${hour}:${minuteStr}`;
+        return `${adjustedHour}:${minuteStr}`;
     }
   };
 
@@ -654,7 +692,9 @@ export default function WeeklySchedule() {
                     {/* 정시 (hour:00) */}
                     <tr>
                       <td class={styles.timeCell}>
-                        <div class={styles.timeLabel}>{hour}:00</div>
+                        <div class={styles.timeLabel}>
+                          {hour >= 24 ? hour - 24 : hour}:00
+                        </div>
                       </td>
                       <For each={activeDays()}>
                         {(dayIndex) => (
