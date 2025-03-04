@@ -15,11 +15,11 @@
 
 .timetable {
   border-collapse: collapse;
-  width: auto;
-  min-width: 50%;
+  width: 100%;
   user-select: none;
   background-color: white;
   table-layout: fixed;
+  position: relative;
 }
 
 .timetable th,
@@ -68,8 +68,10 @@
 
 /* 요일 셀의 테두리 스타일 (시간 열과 분리) */
 .timeSlot {
+  position: relative;
   border-left: none;
   cursor: pointer;
+  z-index: 0;
 }
 
 .timeSlot:last-child {
@@ -103,6 +105,7 @@
   width: 100%;
   height: 100%;
   pointer-events: none;
+  z-index: 1;
 }
 
 /* 강의 박스 스타일 */
@@ -117,8 +120,8 @@
   overflow: hidden;
   cursor: pointer;
   transition: box-shadow 0.2s;
-  /* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); */
-  /* opacity: 0.95; */
+  pointer-events: auto;
+  z-index: 2;
 }
 
 .courseBox:hover {
@@ -230,4 +233,127 @@
   padding: 5px 10px;
   font-size: 12px;
   cursor: pointer;
+}
+
+/* 레이아웃 조정 */
+.contentWrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 100%;
+  margin-bottom: 40px;
+}
+
+.timetableContainer {
+  max-width: none;
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+  padding: 20px;
+  overflow: visible;
+}
+
+.timetableSection {
+  width: 560px;
+  position: relative;
+}
+
+.settingsSection {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+  overflow: visible;
+  width: 0;
+  height: auto;
+  margin-left: 20px;
+  background-color: white;
+}
+
+.settingsSection.visible {
+  width: 230px;
+}
+
+/* 모드 전환 스위치 컨테이너 위치 조정 */
+.modeToggleContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 10px;
+  padding-bottom: 20px;
+}
+
+.modeToggleLabel {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 토글 스위치 스타일 */
+.toggleSwitch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 24px;
+}
+
+.toggleSwitch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.4s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #2196f3;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+/* 드래그 오버레이 컨테이너 */
+.dragOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* 드래그 오버레이 내부 박스 */
+.dragOverlayBox {
+  position: absolute;
+  background-color: var(--selected-color);
+  opacity: 1;
+  pointer-events: none;
+  border-radius: 4px;
 }

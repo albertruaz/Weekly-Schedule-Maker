@@ -61,6 +61,32 @@ export default function WeeklySchedule() {
   const [endHour, setEndHour] = createSignal(22);
   const [activeDays, setActiveDays] = createSignal([1, 2, 3, 4, 5]); // 기본값: 월~금
   const [timeFormat, setTimeFormat] = createSignal<TimeFormat>("korean"); // 기본값: 한글 형식
+  const [isEditMode, setIsEditMode] = createSignal(true); // 수정 모드 상태 추가
+
+  // 시간 형식이 변경될 때마다 모든 강의의 시간 텍스트 업데이트 (배치 처리)
+  createEffect(() => {
+    const format = timeFormat(); // 의존성 추적을 위해 시그널 읽기
+
+    // 배치 처리를 위해 모든 업데이트를 한 번에 수행
+    const updatedCourses = courses.map((course) => {
+      const newTime = getTimeText(
+        course.startHour,
+        course.startMinute,
+        course.endHour,
+        course.endMinute
+      );
+      // 시간 형식이 실제로 변경된 경우에만 업데이트
+      if (newTime !== course.time) {
+        return { ...course, time: newTime };
+      }
+      return course;
+    });
+
+    // 변경된 내용이 있는 경우에만 상태 업데이트
+    if (updatedCourses.some((course, i) => course.time !== courses[i].time)) {
+      setCourses(updatedCourses);
+    }
+  });
 
   // 시간 범위 계산
   const hours = () =>
@@ -443,12 +469,10 @@ export default function WeeklySchedule() {
     const isSameCell = startTime === endTime;
 
     if (isSameCell) {
-      // 같은 셀을 클릭한 경우 해당 셀만 선택
       startHour = start.hour;
       startMinute = start.minute;
       endHour = start.hour;
       endMinute = start.minute;
-      // 30분 단위로 끝나는 시간 조정
       if (startMinute === 0) {
         endMinute = 30;
       } else {
@@ -456,59 +480,25 @@ export default function WeeklySchedule() {
         endMinute = 0;
       }
     } else if (!isUpward) {
-      // 아래로 드래그
       startHour = start.hour;
       startMinute = start.minute;
       endHour = end.hour;
       endMinute = end.minute;
     } else {
-      // 위로 드래그
       startHour = end.hour;
       startMinute = end.minute;
       endHour = start.hour;
       endMinute = start.minute;
     }
 
-    // 테이블에서 첫 셀 위치 찾기
-    const table = document.getElementById("timetable");
-    if (!table) return;
-
-    const tableRect = table.getBoundingClientRect();
-    const startCell = document.querySelector(
-      `td[data-day="${start.day}"][data-hour="${startHour}"][data-minute="${startMinute}"]`
-    );
-
-    const endCell = document.querySelector(
-      `td[data-day="${start.day}"][data-hour="${endHour}"][data-minute="${endMinute}"]`
-    );
-
-    if (!startCell) return;
-
-    const startRect = startCell.getBoundingClientRect();
-    let height;
-
-    if (endCell) {
-      const endRect = endCell.getBoundingClientRect();
-      if (isSameCell) {
-        // 같은 셀인 경우 한 칸 높이만 사용
-        height = startRect.height;
-      } else {
-        height = endRect.bottom - startRect.top;
-      }
-    } else {
-      // 종료 셀이 없는 경우 계산
-      const duration = (endHour - startHour) * 60 + (endMinute - startMinute);
-      height = (duration / 30) * 14; // 30분당 14px
-    }
-
-    // 시간 텍스트 생성
-    const timeText = getTimeText(startHour, startMinute, endHour, endMinute);
+    // 오버레이의 현재 위치를 사용하여 새 강의 박스 생성
+    const currentOverlay = overlayPosition();
 
     // 새 강의 추가
     const newCourse: Course = {
       id: generateId(),
       title: "새 강의",
-      time: timeText,
+      time: getTimeText(startHour, startMinute, endHour, endMinute),
       text: "설명을 입력하세요",
       color: selectedColor(),
       day: start.day,
@@ -517,10 +507,10 @@ export default function WeeklySchedule() {
       endHour,
       endMinute,
       position: {
-        top: startRect.top - tableRect.top,
-        left: startRect.left - tableRect.left,
-        width: startRect.width,
-        height: height,
+        top: currentOverlay.top,
+        left: currentOverlay.left,
+        width: currentOverlay.width,
+        height: currentOverlay.height,
       },
     };
 
@@ -646,7 +636,7 @@ export default function WeeklySchedule() {
       "background-color": course.color,
       opacity: "1",
       "z-index": 10,
-      "border-radius": "0px",
+      "border-radius": "4px",
       transition: "transform 0.2s, box-shadow 0.2s",
       "transform-origin": "center",
       "will-change": "transform, width, height",
@@ -660,225 +650,235 @@ export default function WeeklySchedule() {
       <h2>Weekly Schedule</h2>
 
       <div class={styles.contentWrapper}>
-        <div class={styles.timetableWrapper}>
-          <table class={styles.timetable} id="timetable">
-            <thead>
-              <tr>
-                <th class={styles.timeCell}></th>
-                <For each={activeDays()}>
-                  {(dayIndex) => {
-                    const dayName = days[dayIndex];
+        <div class={styles.timetableSection}>
+          <div class={styles.timetableWrapper}>
+            <table class={styles.timetable} id="timetable">
+              <thead>
+                <tr>
+                  <th class={styles.timeCell}></th>
+                  <For each={activeDays()}>
+                    {(dayIndex) => {
+                      const dayName = days[dayIndex];
 
-                    const isWeekend =
-                      dayIndex === 0 || dayIndex === 6 || dayIndex === 7;
-                    return (
-                      <th
-                        class={`${styles.dayHeader} ${
-                          isWeekend ? styles.weekendDay : ""
-                        }`}
-                        style={isWeekend ? { color: "#e74c3c" } : {}}
-                      >
-                        {dayName}
-                      </th>
-                    );
-                  }}
+                      const isWeekend =
+                        dayIndex === 0 || dayIndex === 6 || dayIndex === 7;
+                      return (
+                        <th
+                          class={`${styles.dayHeader} ${
+                            isWeekend ? styles.weekendDay : ""
+                          }`}
+                          style={isWeekend ? { color: "#e74c3c" } : {}}
+                        >
+                          {dayName}
+                        </th>
+                      );
+                    }}
+                  </For>
+                </tr>
+              </thead>
+              <tbody>
+                <For each={hours()}>
+                  {(hour) => (
+                    <>
+                      {/* 정시 (hour:00) */}
+                      <tr>
+                        <td class={styles.timeCell}>
+                          <div class={styles.timeLabel}>
+                            {hour >= 24 ? hour - 24 : hour}:00
+                          </div>
+                        </td>
+                        <For each={activeDays()}>
+                          {(dayIndex) => (
+                            <td
+                              class={`${styles.timeSlot} ${styles.hourLine}`}
+                              onMouseDown={() =>
+                                handleCellMouseDown(dayIndex as Day, hour, 0)
+                              }
+                              onMouseOver={() =>
+                                handleCellMouseOver(dayIndex as Day, hour, 0)
+                              }
+                              data-day={dayIndex}
+                              data-hour={hour}
+                              data-minute={0}
+                            ></td>
+                          )}
+                        </For>
+                      </tr>
+                      {/* 30분 (hour:30) */}
+                      <tr>
+                        <td class={styles.timeCell}></td>
+                        <For each={activeDays()}>
+                          {(dayIndex) => (
+                            <td
+                              class={`${styles.timeSlot} ${styles.halfHourLine}`}
+                              onMouseDown={() =>
+                                handleCellMouseDown(dayIndex as Day, hour, 30)
+                              }
+                              onMouseOver={() =>
+                                handleCellMouseOver(dayIndex as Day, hour, 30)
+                              }
+                              data-day={dayIndex}
+                              data-hour={hour}
+                              data-minute={30}
+                            ></td>
+                          )}
+                        </For>
+                      </tr>
+                    </>
+                  )}
                 </For>
-              </tr>
-            </thead>
-            <tbody>
-              <For each={hours()}>
-                {(hour) => (
-                  <>
-                    {/* 정시 (hour:00) */}
-                    <tr>
-                      <td class={styles.timeCell}>
-                        <div class={styles.timeLabel}>
-                          {hour >= 24 ? hour - 24 : hour}:00
-                        </div>
-                      </td>
-                      <For each={activeDays()}>
-                        {(dayIndex) => (
-                          <td
-                            class={`${styles.timeSlot} ${styles.hourLine}`}
-                            onMouseDown={() =>
-                              handleCellMouseDown(dayIndex as Day, hour, 0)
-                            }
-                            onMouseOver={() =>
-                              handleCellMouseOver(dayIndex as Day, hour, 0)
-                            }
-                            data-day={dayIndex}
-                            data-hour={hour}
-                            data-minute={0}
-                          ></td>
-                        )}
-                      </For>
-                    </tr>
-                    {/* 30분 (hour:30) */}
-                    <tr>
-                      <td class={styles.timeCell}></td>
-                      <For each={activeDays()}>
-                        {(dayIndex) => (
-                          <td
-                            class={`${styles.timeSlot} ${styles.halfHourLine}`}
-                            onMouseDown={() =>
-                              handleCellMouseDown(dayIndex as Day, hour, 30)
-                            }
-                            onMouseOver={() =>
-                              handleCellMouseOver(dayIndex as Day, hour, 30)
-                            }
-                            data-day={dayIndex}
-                            data-hour={hour}
-                            data-minute={30}
-                          ></td>
-                        )}
-                      </For>
-                    </tr>
-                  </>
+              </tbody>
+            </table>
+
+            {/* 강의 박스 */}
+            <div class={styles.courseBoxGrid}>
+              <For each={courses}>
+                {(course) => (
+                  <Show when={activeDays().includes(course.day)}>
+                    <div
+                      class={styles.courseBox}
+                      style={getCourseStyle(course)}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        class={styles.deleteButton}
+                        onClick={() => deleteCourse(course.id)}
+                      >
+                        ×
+                      </div>
+                      <div
+                        class={styles.courseTitle}
+                        style={{ "text-align": titleAlign() }}
+                        contentEditable={true}
+                        onBlur={(e) =>
+                          updateCourseContent(
+                            course.id,
+                            "title",
+                            e.currentTarget.textContent || ""
+                          )
+                        }
+                      >
+                        {course.title}
+                      </div>
+                      <div
+                        style={{
+                          "font-weight": "normal",
+                          "margin-bottom": "1px",
+                          "font-size": "5.5px",
+                          width: "100%",
+                          color: "#444",
+                          "user-select": "none",
+                          "text-align": timeAlign(),
+                        }}
+                      >
+                        {course.time}
+                      </div>
+                      <div
+                        style={{
+                          "font-weight": "normal",
+                          "font-size": "5.5px",
+                          color:
+                            course.text === "설명을 입력하세요"
+                              ? "#888"
+                              : "#555",
+                          width: "100%",
+                          "text-align": textAlign(),
+                        }}
+                        contentEditable={true}
+                        onFocus={(e) => {
+                          if (
+                            e.currentTarget.textContent === "설명을 입력하세요"
+                          ) {
+                            e.currentTarget.textContent = "";
+                          }
+                        }}
+                        onBlur={(e) => {
+                          if (!e.currentTarget.textContent?.trim()) {
+                            e.currentTarget.textContent = "설명을 입력하세요";
+                            updateCourseContent(
+                              course.id,
+                              "text",
+                              "설명을 입력하세요"
+                            );
+                          } else {
+                            updateCourseContent(
+                              course.id,
+                              "text",
+                              e.currentTarget.textContent
+                            );
+                          }
+                        }}
+                      >
+                        {course.text}
+                      </div>
+                    </div>
+                  </Show>
                 )}
               </For>
-            </tbody>
-          </table>
+            </div>
 
-          {/* 강의 박스 */}
-          <div class={styles.courseBoxGrid}>
-            <For each={courses}>
-              {(course) => (
-                <Show when={activeDays().includes(course.day)}>
-                  <div
-                    class={styles.courseBox}
-                    style={getCourseStyle(course)}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div
-                      class={styles.deleteButton}
-                      onClick={() => deleteCourse(course.id)}
-                    >
-                      ×
-                    </div>
-                    <div
-                      class={styles.courseTitle}
-                      style={{ "text-align": titleAlign() }}
-                      contentEditable={true}
-                      onBlur={(e) =>
-                        updateCourseContent(
-                          course.id,
-                          "title",
-                          e.currentTarget.textContent || ""
-                        )
-                      }
-                    >
-                      {course.title}
-                    </div>
-                    <div
-                      style={{
-                        "font-weight": "normal",
-                        "margin-bottom": "1px",
-                        "font-size": "5.5px",
-                        width: "100%",
-                        color: "#444",
-                        "user-select": "none",
-                        "text-align": timeAlign(),
-                      }}
-                    >
-                      {course.time}
-                    </div>
-                    <div
-                      style={{
-                        "font-weight": "normal",
-                        "font-size": "5.5px",
-                        color:
-                          course.text === "설명을 입력하세요" ? "#888" : "#555",
-                        width: "100%",
-                        "text-align": textAlign(),
-                      }}
-                      contentEditable={true}
-                      onFocus={(e) => {
-                        if (
-                          e.currentTarget.textContent === "설명을 입력하세요"
-                        ) {
-                          e.currentTarget.textContent = "";
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (!e.currentTarget.textContent?.trim()) {
-                          e.currentTarget.textContent = "설명을 입력하세요";
-                          updateCourseContent(
-                            course.id,
-                            "text",
-                            "설명을 입력하세요"
-                          );
-                        } else {
-                          updateCourseContent(
-                            course.id,
-                            "text",
-                            e.currentTarget.textContent
-                          );
-                        }
-                      }}
-                    >
-                      {course.text}
-                    </div>
-                  </div>
-                </Show>
-              )}
-            </For>
-          </div>
-
-          {/* 드래그 오버레이 */}
-          {isDragging() && (
-            <div
-              style={
-                {
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  "pointer-events": "none",
-                  "z-index": 100,
-                } as any
-              }
-            >
-              <div
-                style={
-                  {
-                    position: "absolute",
+            {/* 드래그 오버레이 */}
+            {isDragging() && (
+              <div class={styles.dragOverlay}>
+                <div
+                  class={styles.dragOverlayBox}
+                  style={{
+                    "--selected-color": selectedColor(),
                     top: `${overlayPosition().top}px`,
                     left: `${overlayPosition().left}px`,
                     width: `${overlayPosition().width}px`,
                     height: `${overlayPosition().height}px`,
-                    "background-color": selectedColor(),
-                    opacity: "1",
-                    "pointer-events": "none",
-                    "border-radius": "4px",
-                  } as any
-                }
+                  }}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 모드 전환 스위치 */}
+          <div class={styles.modeToggleContainer}>
+            <span class={styles.modeToggleLabel}>보기</span>
+            <label class={styles.toggleSwitch}>
+              <input
+                type="checkbox"
+                checked={isEditMode()}
+                onChange={(e) => setIsEditMode(e.currentTarget.checked)}
               />
-            </div>
-          )}
+              <span class={styles.slider}></span>
+            </label>
+            <span class={styles.modeToggleLabel}>수정</span>
+          </div>
         </div>
 
-        <Settings
-          titleAlign={titleAlign}
-          timeAlign={timeAlign}
-          textAlign={textAlign}
-          setTitleAlign={setTitleAlign}
-          setTimeAlign={setTimeAlign}
-          setTextAlign={setTextAlign}
-          selectedColor={selectedColor}
-          setSelectedColor={setSelectedColor}
-          colors={colors}
-          startHour={startHour}
-          endHour={endHour}
-          setStartHour={setStartHour}
-          setEndHour={setEndHour}
-          activeDays={activeDays}
-          setActiveDays={setActiveDays}
-          timeFormat={timeFormat}
-          setTimeFormat={setTimeFormat}
-          onSave={saveTimetable}
-          onLoad={loadTimetable}
-        />
+        {/* 설정 패널 */}
+        <div
+          class={`${styles.settingsSection} ${
+            isEditMode() ? styles.visible : ""
+          }`}
+        >
+          <Show when={isEditMode()}>
+            <Settings
+              titleAlign={titleAlign}
+              timeAlign={timeAlign}
+              textAlign={textAlign}
+              setTitleAlign={setTitleAlign}
+              setTimeAlign={setTimeAlign}
+              setTextAlign={setTextAlign}
+              selectedColor={selectedColor}
+              setSelectedColor={setSelectedColor}
+              colors={colors}
+              startHour={startHour}
+              endHour={endHour}
+              setStartHour={setStartHour}
+              setEndHour={setEndHour}
+              activeDays={activeDays}
+              setActiveDays={setActiveDays}
+              timeFormat={timeFormat}
+              setTimeFormat={setTimeFormat}
+              onSave={saveTimetable}
+              onLoad={loadTimetable}
+            />
+          </Show>
+        </div>
       </div>
     </div>
   );
