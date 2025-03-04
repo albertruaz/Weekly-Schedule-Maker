@@ -10,6 +10,7 @@ import { createStore } from "solid-js/store";
 import styles from "./WeeklySchedule.module.css";
 import { Settings } from "./Settings/Settings";
 import type { TimeFormat } from "./Settings/TimeFormatControl";
+import type { jsPDF } from "jspdf";
 
 // 타입 정의
 type Day = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7; // 0: 일요일, 1: 월요일, ..., 6: 토요일, 7: 일요일
@@ -547,6 +548,29 @@ export default function WeeklySchedule() {
     URL.revokeObjectURL(url);
   };
 
+  // PDF 다운로드
+  const downloadPDF = () => {
+    const timetable = document.getElementById("timetable");
+    if (!timetable) return;
+
+    // html2canvas와 jsPDF를 동적으로 import
+    import("html2canvas").then((html2canvas) => {
+      import("jspdf").then(({ jsPDF }) => {
+        html2canvas.default(timetable).then((canvas) => {
+          const imgData = canvas.toDataURL("image/png");
+          const pdf = new jsPDF({
+            orientation: "landscape",
+            unit: "px",
+            format: [canvas.width, canvas.height],
+          });
+
+          pdf.addImage(imgData, "PNG", 0, 0, canvas.width, canvas.height);
+          pdf.save("timetable.pdf");
+        });
+      });
+    });
+  };
+
   // 시간표 불러오기
   const loadTimetable = (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -850,11 +874,7 @@ export default function WeeklySchedule() {
         </div>
 
         {/* 설정 패널 */}
-        <div
-          class={`${styles.settingsSection} ${
-            isEditMode() ? styles.visible : ""
-          }`}
-        >
+        <div class={styles.settingsSection}>
           <Show when={isEditMode()}>
             <Settings
               titleAlign={titleAlign}
@@ -876,7 +896,37 @@ export default function WeeklySchedule() {
               setTimeFormat={setTimeFormat}
               onSave={saveTimetable}
               onLoad={loadTimetable}
+              onDownloadPDF={downloadPDF}
             />
+          </Show>
+          <Show when={!isEditMode()}>
+            <div class={styles.viewModeSettings}>
+              <h2 class={styles.settingsTitle}>파일 관리</h2>
+              <div class={styles.jsonControls}>
+                <div class={styles.controlGroup}>
+                  <h4>기록</h4>
+                  <button onClick={saveTimetable}>기록 저장하기</button>
+                  <button
+                    onClick={() =>
+                      document.getElementById("load-input")?.click()
+                    }
+                  >
+                    기록 불러오기
+                  </button>
+                  <input
+                    type="file"
+                    id="load-input"
+                    accept=".json"
+                    style={{ display: "none" }}
+                    onChange={loadTimetable}
+                  />
+                </div>
+                <div class={styles.controlGroup}>
+                  <h4>내보내기</h4>
+                  <button onClick={downloadPDF}>PDF 저장</button>
+                </div>
+              </div>
+            </div>
           </Show>
         </div>
       </div>
